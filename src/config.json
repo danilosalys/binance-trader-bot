@@ -1,0 +1,11 @@
+{
+   "mode": "backtest",
+   "symbol": "BTCBRL",
+   "startTime": "2024-09-01",
+   "endTime": "now",
+   "quantity": 0.001,
+   "initialAmount": 4000,
+   "candleTime": "15m",
+   "RSI": 70,
+   "profitPercentage": 1.05
+}

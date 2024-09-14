@@ -1,0 +1,17 @@
+{
+  "name": "binance-trader-bot",
+  "version": "1.0.0",
+  "description": "Bot Trader para plataforma Binance",
+  "main": "app.js",
+  "scripts": {
+    "test": "npm run test",
+    "dev": "nodemon src/app.js"
+  },
+  "author": "Danilo Sales",
+  "license": "ISC",
+  "dependencies": {
+    "binance-api-node": "^0.12.7",
+    "dotenv": "^16.4.5",
+    "technicalindicators": "^3.1.0"
+  }
+}
