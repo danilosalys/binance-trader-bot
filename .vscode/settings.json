@@ -1,0 +1,9 @@
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#242224",
+        "titleBar.activeBackground": "#2a262a",
+        "titleBar.activeForeground": "#FEFBFE"
+    },
+    "terminal.explorerKind": "integrated",
+    "terminal.integrated.defaultProfile.windows": "Git Bash"
+}

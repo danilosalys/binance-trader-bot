@@ -1,11 +1,23 @@
 {
    "mode": "backtest",
    "symbol": "BTCBRL",
-   "startTime": "2024-09-01",
+   "startTime": "2024-01-01",
    "endTime": "now",
+   "limitCandles":1000,
+   "timeZoneBrasiliaTimestamp": 10800000,
    "quantity": 0.001,
    "initialAmount": 4000,
    "candleTime": "15m",
-   "RSI": 70,
-   "profitPercentage": 1.05
-}
+   "RSI": 60,
+   "profitPercentage": 1.05,
+   "rsiPeriod": 14,
+   "MACD": {
+     "macdFastPeriod": 12,
+     "macdSlowPeriod": 26,
+     "macdSignalPeriod": 9
+   },
+   "Bollinger": {
+     "bbPeriod": 20,
+     "bbStdDev": 2
+   }  
+ }
