@@ -27,8 +27,6 @@ async function checkBalance() {
   }
 }
 
-
-
 // Função para obter o preço atual do Bitcoin
 async function getBitcoinPrice() {
   try {
@@ -49,127 +47,179 @@ async function getBitcoinPrice() {
   }
 }
 
-
 // Função para obter dados de candles com suporte a múltiplos lotes
-async function getCandlesInBatches(symbol, interval, startTime, endTime, limit) {
-	let allCandles = [];
-	let currentStartTime = startTime;
-  
-	while (currentStartTime < endTime) {
-	  const candles = await client.candles({
-		symbol: symbol,
-		interval: interval,
-		startTime: currentStartTime,
-		limit: limit,
-	  });
+async function getCandlesInBatches(
+  symbol,
+  interval,
+  startTime,
+  endTime,
+  limit
+) {
+  let allCandles = [];
+  let currentStartTime = startTime;
 
-	  // Adicionando candleTimeBrasilia para cada candle
-		const candlesWithBrasiliaTime = candles.map(candle => {
-			const candleTimeBrasilia = new Date(candle.openTime - config.timeZoneBrasiliaTimestamp).toISOString(); // Converte para horário de Brasília
-			return {
-				...candle, // Mantém os dados originais do candle
-				candleTimeBrasilia // Adiciona o campo candleTimeBrasilia com horário ajustado
-			};
-		});
-  
-	  if (candlesWithBrasiliaTime.length === 0) break; // Se não houver mais candles, pare o loop
+  while (currentStartTime < endTime) {
+    const candles = await client.candles({
+      symbol: symbol,
+      interval: interval,
+      startTime: currentStartTime,
+      limit: limit,
+    });
 
-  
-	  allCandles = allCandles.concat(candlesWithBrasiliaTime);
-  
-	  // Atualiza o tempo de início para o próximo lote
-	  currentStartTime = candles[candles.length - 1].closeTime;
-	  
-	  // Log do progresso
-	  console.log(`Obtidos ${candles.length} candles, total: ${allCandles.length}`);
-	}
+    // Adicionando candleTimeBrasilia para cada candle
+    const candlesWithBrasiliaTime = candles.map((candle) => {
+      const candleTimeBrasilia = new Date(
+        candle.openTime - config.timeZoneBrasiliaTimestamp
+      ).toISOString(); // Converte para horário de Brasília
+      return {
+        ...candle, // Mantém os dados originais do candle
+        candleTimeBrasilia, // Adiciona o campo candleTimeBrasilia com horário ajustado
+      };
+    });
 
-  
-	return allCandles;
+    if (candlesWithBrasiliaTime.length === 0) break; // Se não houver mais candles, pare o loop
+
+    allCandles = allCandles.concat(candlesWithBrasiliaTime);
+
+    // Atualiza o tempo de início para o próximo lote
+    currentStartTime = candles[candles.length - 1].closeTime;
+
+    // Log do progresso
+    console.log(
+      `Obtidos ${candles.length} candles, total: ${allCandles.length}`
+    );
   }
 
-
+  return allCandles;
+}
 
 // Função para obter os candles históricos
 async function getCandleData(symbol, interval, limit) {
-	try {
-		const candles = await client.candles({
-			symbol: symbol,
-			interval: interval,
-			limit: limit,
-		});
+  try {
+    const candles = await client.candles({
+      symbol: symbol,
+      interval: interval,
+      limit: limit,
+    });
 
-		// Adicionando candleTimeBrasilia para cada candle
-		const candlesWithBrasiliaTime = candles.map(candle => {
-			const candleTimeBrasilia = new Date(candle.openTime - config.timeZoneBrasiliaTimestamp).toISOString(); // Converte para horário de Brasília
-			return {
-				...candle, // Mantém os dados originais do candle
-				candleTimeBrasilia // Adiciona o campo candleTimeBrasilia com horário ajustado
-			};
-		});
+    // Adicionando candleTimeBrasilia para cada candle
+    const candlesWithBrasiliaTime = candles.map((candle) => {
+      const candleTimeBrasilia = new Date(
+        candle.openTime - config.timeZoneBrasiliaTimestamp
+      ).toISOString(); // Converte para horário de Brasília
+      return {
+        ...candle, // Mantém os dados originais do candle
+        candleTimeBrasilia, // Adiciona o campo candleTimeBrasilia com horário ajustado
+      };
+    });
 
-		// Exibindo o primeiro candle para verificar o resultado
+    // Exibindo o primeiro candle para verificar o resultado
 
-		return candlesWithBrasiliaTime;
-	} catch (error) {
-		console.error("Erro ao buscar dados de candlestick:", error);
-	}
+    return candlesWithBrasiliaTime;
+  } catch (error) {
+    console.error("Erro ao buscar dados de candlestick:", error);
+  }
 }
-
-
 
 // Função para calcular o RSI de todos os candles
-function calculateRSIForCandles(candles, period) {
-    const closePrices = candles.map((candle) => parseFloat(candle.close)); // Extrai os preços de fechamento
+function calculateCandlesIndicators(
+  candles,
+  period,
+  slowPeriod,
+  signalPeriod,
+  fastPeriod,
+  period9,
+  period21,
+  period200
+) {
+  const closePrices = candles.map((candle) => parseFloat(candle.close)); // Extrai os preços de fechamento
 
-    // Calcula o RSI para todos os candles, incluindo os extras
-    const rsiValues = RSI.calculate({
-        values: closePrices,
-        period: period,
-    });
+  // Calcula o RSI para todos os candles, incluindo os extras
+  const rsiValues = RSI.calculate({
+    values: closePrices,
+    period: period,
+  });
 
-    // Associa o RSI ao candle (ajusta para remover os primeiros candles extras)
-    const rsiWithCandles = candles.map((candle, index) => {
-        return {
-            ...candle, // Mantém os dados originais do candle
-            rsi: index >= period ? rsiValues[index - period] : null, // Associa o valor RSI correto
-        };
-    });
+  const macdValues = MACD.calculate({
+    values: closePrices,
+    fastPeriod: fastPeriod, // Ex: 12 períodos
+    slowPeriod: slowPeriod, // Ex: 26 períodos
+    signalPeriod: signalPeriod, // Ex: 9 períodos
+    SimpleMAOscillator: false, // Usamos médias móveis exponenciais
+    SimpleMASignal: false,
+  });
 
-    return rsiWithCandles;	
+  const mediaMovel9periodsValue = EMA.calculate({
+    values: closePrices,
+    period: period9,
+  });
+
+  const mediaMovel21periodsValue = EMA.calculate({
+    values: closePrices,
+    period: period21,
+  });
+
+  const mediaMovel200periodsValue = EMA.calculate({
+    values: closePrices,
+    period: period200,
+  });
+
+  // Associa o RSI ao candle (ajusta para remover os primeiros candles extras)
+  const candlesWithIndicators = candles.map((candle, index) => {
+    const macdData =
+      index + 1 >= slowPeriod ? macdValues[index + 1 - slowPeriod] : null;
+
+    const mediaMovel9periodsData =
+      index + 1 >= period9
+        ? mediaMovel9periodsValue[index + 1 - period9]
+        : null;
+    const mediaMovel21periodsData =
+      index + 1 >= period21
+        ? mediaMovel21periodsValue[index + 1 - period21]
+        : null;
+    const mediaMovel200periodsData =
+      index + 1 >= period200
+        ? mediaMovel200periodsValue[index + 1 - period200]
+        : null;
+
+    return {
+      ...candle, // Mantém os dados originais do candle
+      rsi: index >= period ? rsiValues[index - period] : null,
+      histogram: macdData
+        ? macdData.histogram == undefined
+          ? null
+          : macdData.histogram.toFixed()
+        : null,
+      macd: macdData
+        ? macdData.MACD == undefined
+          ? null
+          : macdData.MACD.toFixed()
+        : null, // Linha MACD
+      signal: macdData
+        ? macdData.signal == undefined
+          ? null
+          : macdData.signal.toFixed()
+        : null,
+      mediaMovel9periods: mediaMovel200periodsData
+        ? mediaMovel200periodsData == undefined
+          ? null
+          : mediaMovel9periodsData.toFixed()
+        : null,
+      mediaMovel21periods: mediaMovel21periodsData
+        ? mediaMovel21periodsData == undefined
+          ? null
+          : mediaMovel21periodsData.toFixed()
+        : null,
+      mediaMovel200periods: mediaMovel200periodsData
+        ? mediaMovel200periodsData == undefined
+          ? null
+          : mediaMovel200periodsData.toFixed()
+        : null,
+    };
+  });
+
+  return candlesWithIndicators;
 }
-
-// Função para calcular o MACD de todos os candles
-function calculateMACDForCandles(candles, fastPeriod, slowPeriod, signalPeriod) {
-    const closePrices = candles.map((candle) => parseFloat(candle.close)); // Extrai os preços de fechamento
-
-    // Calcula o MACD para todos os candles, incluindo os extras
-    const macdValues = MACD.calculate({
-        values: closePrices,
-        fastPeriod: fastPeriod,    // Ex: 12 períodos
-        slowPeriod: slowPeriod,    // Ex: 26 períodos
-        signalPeriod: signalPeriod, // Ex: 9 períodos
-        SimpleMAOscillator: false,  // Usamos médias móveis exponenciais
-        SimpleMASignal: false,
-    });
-
-    // Associa o MACD ao candle (ajusta para remover os primeiros candles extras)
-    const macdWithCandles = candles.map((candle, index) => {
-        const macdData = index+1 >= slowPeriod ? macdValues[index+1 - slowPeriod] : null;
-        return {
-            ...candle, // Mantém os dados originais do candle
-            histogram: macdData ? macdData.histogram==undefined? null: macdData.histogram.toFixed() : null,
-			macd: macdData ?    macdData.MACD ==undefined ? null: macdData.MACD.toFixed() : null,       // Linha MACD
-            signal: macdData ? macdData.signal ==undefined ? null: macdData.signal.toFixed() : null,   // Linha de Sinal
-             // Histograma (MACD - Signal)
-        };
-    });
-
-    return macdWithCandles;
-}
-
-
-
 
 // Função para calcular o RSI
 function calculateRSI(closePrices, period) {
@@ -211,14 +261,6 @@ function analyzeVolume(candles) {
 // Função para calcular a SMA
 function calculateSMA(closePrices, period) {
   return SMA.calculate({
-    values: closePrices,
-    period: period,
-  });
-}
-
-// Função para calcular a EMA
-function calculateEMA(closePrices, period) {
-  return EMA.calculate({
     values: closePrices,
     period: period,
   });
@@ -267,126 +309,63 @@ async function placeBuyOrder(symbol, quantity) {
   }
 }
 
-// Função de trade para detectar oportunidades de compra após correção
-async function detectBuyOpportunity(
-  symbol,
-  rsiPeriod,
-  macdFastPeriod,
-  macdSlowPeriod,
-  macdSignalPeriod,
-  bbPeriod,
-  bbStdDev
-) {
-  try {
-    // Obter dados de candlestick com intervalo de 15 minutos
-    const candles = await getCandleData(symbol, "1m", config.limitCandles);
-    const closePrices = candles.map((candle) => parseFloat(candle.close));
-
-    // Calcular RSI, MACD, Bollinger Bands, Volume, e EMA
-    const rsiValues = calculateRSI(closePrices, rsiPeriod);
-    const macdValues = calculateMACD(
-      closePrices,
-      macdFastPeriod,
-      macdSlowPeriod,
-      macdSignalPeriod
-    );
-    const bbValues = calculateBollingerBands(closePrices, bbPeriod, bbStdDev);
-    const { avgVolume, latestVolume } = analyzeVolume(candles);
-    const ema50 = calculateEMA(closePrices, 50);
-
-    // Obter os valores mais recentes
-    const latestRSI = rsiValues[rsiValues.length - 1];
-    const latestMACD = macdValues[macdValues.length - 1];
-    const latestBB = bbValues[bbValues.length - 1];
-    const latestClose = closePrices[closePrices.length - 1];
-    const latestEMA50 = ema50[ema50.length - 1];
-
-    console.log(`RSI atual: ${latestRSI}`);
-    console.log(`MACD atual:`, latestMACD);
-    console.log(
-      `Bollinger Bands superior: ${latestBB.upper}, inferior: ${latestBB.lower}`
-    );
-    console.log(`Volume médio: ${avgVolume}, Volume atual: ${latestVolume}`);
-    console.log(`EMA de 50 períodos: ${latestEMA50}`);
-
-    // Condições para compra
-
-    // 1. Verificação de Correção com RSI (Abaixo de 60)
-    if (latestRSI < 60) {
-      console.log("RSI abaixo de 60: possível correção detectada.");
-
-      // 2. Cruzamento de Alta no MACD
-      if (latestMACD.MACD > latestMACD.signal) {
-        console.log("Cruzamento de alta no MACD: sinal de compra confirmado.");
-
-        // 3. Preço acima da EMA de 50 períodos
-        if (latestClose > latestEMA50) {
-          console.log(
-            "Preço está acima da EMA de 50 períodos: tendência de alta confirmada."
-          );
-
-          // 4. Preço próximo à banda inferior de Bollinger
-          if (latestClose <= latestBB.lower) {
-            console.log(
-              "Preço próximo à banda inferior de Bollinger: ótima oportunidade de compra."
-            );
-
-            // 5. Verificação de volume acima da média
-            if (latestVolume >= avgVolume) {
-              console.log(
-                "Volume atual acima da média: confirmando força no mercado."
-              );
-
-              // 6. Verificação de divergência no RSI
-              if (checkRSIDivergence(closePrices, rsiValues)) {
-                console.log(
-                  "Divergência de alta no RSI detectada: sinal de compra."
-                );
-
-                // Colocar ordem de compra
-                // await placeBuyOrder(symbol, 0.001); // Exemplo: Comprar 0.001 BTC
-                console.log("TACALEPAU MARCO VEIO!!!");
-              }
-            }
-          }
-        }
-      }
-    } else {
-      console.log(
-        "RSI ainda muito elevado. Aguardando melhor oportunidade de compra."
-      );
-    }
-  } catch (error) {
-    console.error("Erro ao detectar oportunidade de compra:", error);
-  }
-}
-
 // Função principal para monitorar o mercado
 async function monitorarMercado() {
-	const { symbol, startTime, endTime, limitCandles, rsiPeriod, MACD, candleTime, timeZoneBrasiliaTimestamp } = config;
+  const {
+    symbol,
+    startTime,
+    endTime,
+    limitCandles,
+    rsiPeriod,
+    MACD,
+    candleTime,
+    timeZoneBrasiliaTimestamp,
+    MediaMovelEMA,
+  } = config;
 
-	const startTimestamp = new Date(startTime).getTime() + timeZoneBrasiliaTimestamp;
-	const endTimestamp = endTime === "now" ? Date.now() : new Date(endTime).getTime() + timeZoneBrasiliaTimestamp;
+  const startTimestamp =
+    new Date(startTime).getTime() + timeZoneBrasiliaTimestamp;
+  const endTimestamp =
+    endTime === "now"
+      ? Date.now()
+      : new Date(endTime).getTime() + timeZoneBrasiliaTimestamp;
 
-	// Obter candles históricos em lotes até cobrir todo o período
-	const candles = await getCandlesInBatches(symbol, candleTime, startTimestamp, endTimestamp, limitCandles);
+  // Obter candles históricos em lotes até cobrir todo o período
+  const candles = await getCandlesInBatches(
+    symbol,
+    candleTime,
+    startTimestamp,
+    endTimestamp,
+    limitCandles
+  );
 
-	// Calcular RSI e MACD para todos os candles
-	const candlesWithRSI = calculateRSIForCandles(candles, rsiPeriod);
-	const candlesWithRSIAndMACD = calculateMACDForCandles(candlesWithRSI, MACD.macdFastPeriod, MACD.macdSlowPeriod, MACD.macdSignalPeriod);
+  // Calcular RSI e MACD para todos os candles
+  const candleWithIndicators = calculateCandlesIndicators(
+    candles,
+    rsiPeriod,
+    MACD.macdSlowPeriod,
+    MACD.macdSignalPeriod,
+    MACD.macdFastPeriod,
+    MediaMovelEMA.period9,
+    MediaMovelEMA.period21,
+    MediaMovelEMA.period200
+  );
 
-	// Abrir o stream de log uma vez
-	const logStream = fs.createWriteStream(`c:/temp/logBinance.txt${candleTime}`, { flags: 'a' });
+  // Abrir o stream de log uma vez
+  const logStream = fs.createWriteStream(
+    `c:/temp/logBinance_${startTime}_a_${endTime}_${candleTime}.txt`,
+    { flags: "a" }
+  );
 
-	// Exibir e gravar os dados calculados
-	candlesWithRSIAndMACD.forEach((candle, index) => {
-		const logMessage = `Candle ${index} ${candle.candleTimeBrasilia}: Fechamento = ${candle.close}, RSI = ${candle.rsi}, Histograma = ${candle.histogram}, MACD = ${candle.macd}, Sinal = ${candle.signal}`;
-		logStream.write(`${logMessage}\n`);
-	});
+  // Exibir e gravar os dados calculados
+  candleWithIndicators.forEach((candle, index) => {
+    const logMessage = `Candle ${index} ${candle.candleTimeBrasilia}: Fechamento = ${candle.close}, RSI = ${candle.rsi}, Histograma = ${candle.histogram}, MACD = ${candle.macd}, Sinal = ${candle.signal}, EMA9 = ${candle.mediaMovel9periods}, EMA21 = ${candle.mediaMovel21periods}, EMA200 = ${candle.mediaMovel200periods}`;
+    logStream.write(`${logMessage}\n`);
+  });
 
-	// Fechar o stream de log após todas as gravações
-	logStream.end();
-	console.log("Fim");
+  // Fechar o stream de log após todas as gravações
+  logStream.end();
+  console.log("Fim");
 }
 
 // Chamar a função para monitorar e calcular o RSI e MACD

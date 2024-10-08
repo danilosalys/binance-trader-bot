@@ -1,7 +1,7 @@
 {
    "mode": "backtest",
    "symbol": "BTCBRL",
-   "startTime": "2024-01-01",
+   "startTime": "2024-09-24",
    "endTime": "now",
    "limitCandles":1000,
    "timeZoneBrasiliaTimestamp": 10800000,
@@ -19,5 +19,15 @@
    "Bollinger": {
      "bbPeriod": 20,
      "bbStdDev": 2
-   }  
+   },
+   "MediaMovelEMA":{
+    "period9":9,
+    "period21":21,
+    "period200":200,
+    "period1000":1000
+   },
+   "Strategy":"RSI+EMA200",
+   "ListStrategies":["RSI+MACD","RSI+EMA200"]
+   
+
  }
